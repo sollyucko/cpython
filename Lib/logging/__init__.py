@@ -1829,7 +1829,7 @@ Logger.manager = Manager(Logger.root)
 # Configuration classes and functions
 #---------------------------------------------------------------------------
 
-def basicConfig(**kwargs):
+def basicConfig(filename=None, filemode='a', format=None, datefmt=None, style='%', level=None, stream=None, handlers=None):
     """
     Do basic configuration for the logging system.
 
@@ -1884,41 +1884,28 @@ def basicConfig(**kwargs):
     _acquireLock()
     try:
         if len(root.handlers) == 0:
-            handlers = kwargs.pop("handlers", None)
+            if (handers is not None) + (stream is not None) + (filename is not None) > 1:
+                raise ValueError("At most one of 'handlers', 'stream', or 'filename' may be specified.")
+            
             if handlers is None:
-                if "stream" in kwargs and "filename" in kwargs:
-                    raise ValueError("'stream' and 'filename' should not be "
-                                     "specified together")
-            else:
-                if "stream" in kwargs or "filename" in kwargs:
-                    raise ValueError("'stream' or 'filename' should not be "
-                                     "specified together with 'handlers'")
-            if handlers is None:
-                filename = kwargs.pop("filename", None)
-                mode = kwargs.pop("filemode", 'a')
-                if filename:
-                    h = FileHandler(filename, mode)
+                if filename is None:
+                    handlers = [StreamHandler(stream)]
                 else:
-                    stream = kwargs.pop("stream", None)
-                    h = StreamHandler(stream)
-                handlers = [h]
-            dfs = kwargs.pop("datefmt", None)
-            style = kwargs.pop("style", '%')
+                    handlers = [FileHandler(filename, filemode)]
+            
             if style not in _STYLES:
-                raise ValueError('Style must be one of: %s' % ','.join(
-                                 _STYLES.keys()))
-            fs = kwargs.pop("format", _STYLES[style][1])
-            fmt = Formatter(fs, dfs, style)
-            for h in handlers:
-                if h.formatter is None:
-                    h.setFormatter(fmt)
-                root.addHandler(h)
-            level = kwargs.pop("level", None)
+                raise ValueError('Style must be one of: %s' % ','.join(_STYLES.keys()))
+            
+            format = _STYLES[style][1] if format is None else format
+            formatter = Formatter(format, datefmt, style)
+            for handler in handlers:
+                if handler.formatter is None:
+                    handler.setFormatter(formatter)
+                
+                root.addHandler(handler)
+            
             if level is not None:
                 root.setLevel(level)
-            if kwargs:
-                keys = ', '.join(kwargs.keys())
-                raise ValueError('Unrecognised argument(s): %s' % keys)
     finally:
         _releaseLock()
 
